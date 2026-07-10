@@ -2,6 +2,7 @@ version: '3.8'
 
 services:
   torrentmonitor:
+    image: tormon:latest
     build:
       context: .
       args:
