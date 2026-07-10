@@ -10,7 +10,9 @@ include_once $dir.'class/Errors.class.php';
 include_once $dir.'class/Notification.class.php';
 include_once $dir.'class/CurlMultiFetcher.class.php';
 
-header('Content-Type: text/html; charset=utf-8');
+if (!headers_sent()) {
+    header('Content-Type: text/html; charset=utf-8');
+}
 
 set_time_limit(0);
 ignore_user_abort(true);

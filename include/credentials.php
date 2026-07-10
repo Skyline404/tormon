@@ -54,6 +54,15 @@ $trackers = Database::getTrackersList();
                 </label>
             </template>
 
+            <template x-if="tracker.tracker == 'nnmclub.to'">
+                <label class="row mt-2">
+                    <div class="col --2:lg mb-1">Cookie<br><small style="color:var(--c-text-muted);font-size:0.8em;">(Вставьте сюда ваши cookies phpbb2mysql_data и sid, если капча Cloudflare не пускает)</small></div>
+                    <div class="col --5:lg mb-2">
+                        <textarea name="cookie" class="input" x-model="tracker.cookie" rows="3"></textarea>
+                    </div>
+                </label>
+            </template>
+
             <div class="row mt-2">
                 <div class="col --2:lg"></div>
                 <div class="col">

@@ -256,10 +256,12 @@ class Sys
             $httpCode = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
             curl_close($ch);
 
-            if (($httpCode == 403 || $httpCode == 503) && !empty($result) && Sys::isCloudflarePage($result))
+            if (($httpCode == 403 || $httpCode == 503 || $httpCode == 200) && !empty($result) && Sys::isCloudflarePage($result))
             {
                 $existingCookie = isset($param['cookie']) ? $param['cookie'] : '';
-                $fsResult = Sys::getViaFlareSolverr($param['url'], $existingCookie);
+                $reqType = isset($param['type']) ? strtoupper($param['type']) : 'GET';
+                $postFields = isset($param['postfields']) ? $param['postfields'] : '';
+                $fsResult = Sys::getViaFlareSolverr($param['url'], $existingCookie, $reqType, $postFields);
                 if ($fsResult !== null)
                     $result = $fsResult['body'];
             }
@@ -275,12 +277,13 @@ class Sys
     {
         return strpos($body, 'cf-browser-verification') !== false
             || strpos($body, 'Just a moment') !== false
+            || stripos($body, 'turnstile') !== false
             || (stripos($body, 'cloudflare') !== false
                 && (strpos($body, 'Checking your browser') !== false
                     || strpos($body, 'DDoS protection') !== false));
     }
 
-    public static function getViaFlareSolverr(string $url, string $existingCookies = ''): ?array
+    public static function getViaFlareSolverr(string $url, string $existingCookies = '', string $method = 'GET', string $postFields = ''): ?array
     {
         $fsUrl = Database::getSetting('flaresolverrUrl');
         if (empty($fsUrl))
@@ -300,12 +303,17 @@ class Sys
             }
         }
 
-        $postData = json_encode(array(
-            'cmd'        => 'request.get',
+        $cmd = ($method === 'POST') ? 'request.post' : 'request.get';
+        $payload = array(
+            'cmd'        => $cmd,
             'url'        => $url,
             'maxTimeout' => 60000,
             'cookies'    => $cookiesArr,
-        ));
+        );
+        if ($method === 'POST') {
+            $payload['postData'] = $postFields;
+        }
+        $postData = json_encode($payload);
 
         $ch = curl_init(rtrim($fsUrl, '/').'/v1');
         curl_setopt_array($ch, array(

@@ -278,7 +278,7 @@ class Database
 
     public static function getAllCredentials()
     {
-        $stmt = self::newStatement("SELECT `id`, `tracker`, `log`, `pass`, `passkey`, `necessarily` FROM `credentials` ORDER BY `tracker`");
+        $stmt = self::newStatement("SELECT `id`, `tracker`, `log`, `pass`, `passkey`, `cookie`, `necessarily` FROM `credentials` ORDER BY `tracker`");
         if ($stmt->execute())
         {
             $i = 0;
@@ -290,6 +290,7 @@ class Database
                 $resultArray[$i]['login'] = $row['log'];
                 $resultArray[$i]['password'] = Crypto::decrypt($row['pass']);
                 $resultArray[$i]['passkey'] = Crypto::decrypt($row['passkey']);
+                $resultArray[$i]['cookie'] = $row['cookie'];
                 $resultArray[$i]['necessarily'] = $row['necessarily'];
                 $i++;
             }
@@ -324,11 +325,16 @@ class Database
             return FALSE;
     }
 
-    public static function setCredentials($id, $login, $password, $passkey)
+    public static function setCredentials($id, $login, $password, $passkey, $cookie = null)
     {
         $password = Crypto::encrypt($password);
         $passkey = Crypto::encrypt($passkey);
-        $stmt = self::newStatement("UPDATE `credentials` SET `log` = :login, `pass` = :password, `passkey` = :passkey WHERE `id` = :id");
+        if ($cookie !== null) {
+            $stmt = self::newStatement("UPDATE `credentials` SET `log` = :login, `pass` = :password, `passkey` = :passkey, `cookie` = :cookie WHERE `id` = :id");
+            $stmt->bindParam(':cookie', $cookie);
+        } else {
+            $stmt = self::newStatement("UPDATE `credentials` SET `log` = :login, `pass` = :password, `passkey` = :passkey WHERE `id` = :id");
+        }
         $stmt->bindParam(':id', $id);
         $stmt->bindParam(':login', $login);
         $stmt->bindParam(':password', $password);

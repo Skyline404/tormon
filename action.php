@@ -471,7 +471,8 @@ if (isset($_POST['action']))
 	{
     	if ( ! isset($_POST['passkey']))
     	    $_POST['passkey'] = '';
-		Database::setCredentials($_POST['id'], $_POST['log'], $_POST['pass'], $_POST['passkey']);
+        $cookie = isset($_POST['cookie']) ? $_POST['cookie'] : null;
+		Database::setCredentials($_POST['id'], $_POST['log'], $_POST['pass'], $_POST['passkey'], $cookie);
     	$return['error'] = FALSE;
         $return['msg'] = 'Данные для трекера обновлены.';
         echo json_encode($return);

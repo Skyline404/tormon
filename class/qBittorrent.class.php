@@ -134,7 +134,14 @@ class qBittorrent
                 if (is_array($new_files)) {
                     $prio_ids = array();
                     foreach ($new_files as $f) {
-                        if (in_array($f['name'], $old_files)) {
+                        $is_old = false;
+                        foreach ($old_files as $old_file) {
+                            if (substr($f['name'], -strlen($old_file)) === $old_file) {
+                                $is_old = true;
+                                break;
+                            }
+                        }
+                        if ($is_old) {
                             $prio_ids[] = $f['index'];
                         }
                     }
