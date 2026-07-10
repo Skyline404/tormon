@@ -20,4 +20,6 @@ services:
 
 volumes:
   torrmon_torrentfiles:
+    name: torrmon_torrentfiles
   torrmon_db:
+    name: torrmon_db
