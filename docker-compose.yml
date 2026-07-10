@@ -13,6 +13,8 @@ services:
     restart: unless-stopped
     ports:
       - "7060:8080"
+    networks:
+      - media
     volumes:
       - .:/var/www/html
       - torrmon_torrentfiles:/var/www/html/torrents
@@ -23,3 +25,7 @@ volumes:
     name: torrmon_torrentfiles
   torrmon_db:
     name: torrmon_db
+
+networks:
+  media:
+    external: true
