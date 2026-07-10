@@ -11,6 +11,12 @@ services:
     container_name: torrentmonitor
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "7060:8080"
     volumes:
       - .:/var/www/html
+      - torrmon_torrentfiles:/var/www/html/torrents
+      - torrmon_db:/var/www/html/db
+
+volumes:
+  torrmon_torrentfiles:
+  torrmon_db:
