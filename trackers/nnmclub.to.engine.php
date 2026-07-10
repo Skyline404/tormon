@@ -69,7 +69,7 @@ class nnmclub
             $login_page = Sys::getUrlContent(
             	array(
             		'type'           => 'GET',
-            		'header'         => 0,
+            		'header'         => 1,
             		'returntransfer' => 1,
             		'encoding'       => 1,
             		'url'            => 'https://'.nnmclub::$domain.'/forum/login.php',
@@ -79,6 +79,11 @@ class nnmclub
             $code = '';
             if (preg_match('/<input type="hidden" name="code" value="([^"]+)"/i', $login_page, $m)) {
                 $code = $m[1];
+            }
+
+            $cookies = '';
+            if (preg_match_all('/Set-Cookie: (.*?);/i', $login_page, $m)) {
+                $cookies = implode('; ', $m[1]);
             }
 
             $postfields = 'username='.$login.'&password='.$password.'&login=%C2%F5%EE%E4';
@@ -97,6 +102,7 @@ class nnmclub
                     'sendHeader'     => array('Host' => nnmclub::$domain, 'Content-length' => strlen($postfields)),
             		'postfields'     => $postfields,
             		'convert'        => array('windows-1251', 'utf-8//IGNORE'),
+                    'cookie'         => $cookies,
             	)
             );
 
