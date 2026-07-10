@@ -65,6 +65,27 @@ class nnmclub
 			$login = iconv('utf-8', 'windows-1251', $credentials['login']);
 			$password = $credentials['password'];
 
+            // Сначала запрашиваем страницу логина для получения кода CSRF
+            $login_page = Sys::getUrlContent(
+            	array(
+            		'type'           => 'GET',
+            		'header'         => 0,
+            		'returntransfer' => 1,
+            		'encoding'       => 1,
+            		'url'            => 'https://'.nnmclub::$domain.'/forum/login.php',
+            	)
+            );
+
+            $code = '';
+            if (preg_match('/<input type="hidden" name="code" value="([^"]+)"/i', $login_page, $m)) {
+                $code = $m[1];
+            }
+
+            $postfields = 'username='.$login.'&password='.$password.'&login=%C2%F5%EE%E4';
+            if (!empty($code)) {
+                $postfields .= '&code='.$code;
+            }
+
 			//авторизовываемся на трекере
 			$page = Sys::getUrlContent(
             	array(
@@ -73,8 +94,8 @@ class nnmclub
             		'returntransfer' => 1,
             		'encoding'       => 1,
             		'url'            => 'https://'.nnmclub::$domain.'/forum/login.php',
-                    'sendHeader'     => array('Host' => nnmclub::$domain, 'Content-length' => strlen($login.'&password='.$password.'&login=%C2%F5%EE%E4')),
-            		'postfields'     => 'username='.$login.'&password='.$password.'&login=%C2%F5%EE%E4',
+                    'sendHeader'     => array('Host' => nnmclub::$domain, 'Content-length' => strlen($postfields)),
+            		'postfields'     => $postfields,
             		'convert'        => array('windows-1251', 'utf-8//IGNORE'),
             	)
             );
