@@ -541,7 +541,7 @@ class Sys
     }
 
     //добавляем в torrent-клиент
-    public static function addToClient($id, $name, $path, $hash, $tracker, $date_str)
+    public static function addToClient($id, $name, $path, $hash, $tracker, $date_str, $old_files = array())
     {
         $torrentClient = Database::getSetting('torrentClient');
         $dir = dirname(__FILE__).'/';
@@ -551,7 +551,7 @@ class Sys
         $filename = str_replace($dir.'torrents/', '', $path);
         $filename = urlencode($filename);
         $url = $server.'torrents/'.$filename;
-        $status = call_user_func($torrentClient.'::addNew', $id, $url, $hash, $tracker);
+        $status = call_user_func($torrentClient.'::addNew', $id, $url, $hash, $tracker, $old_files);
         if ($status['status'])
         {
             Database::deleteFromTemp($id);
@@ -596,11 +596,14 @@ class Sys
         $file = '['.$tracker.']_'.$file.'.torrent';
         $dir = dirname(__FILE__).'/';
         $path = str_replace('class/', '', $dir).'torrents/'.$file;
-        if (file_exists($path))
+        
+        $old_files = array();
+        if (file_exists($path)) {
+            include_once $dir.'BEncode.class.php';
+            $old_torrent = file_get_contents($path);
+            $old_files = BEncode::getFilesList($old_torrent);
             unlink($path);
-
-        //сохранён ли сам torrent-файл на диск - именно это решает caller,
-        //обновлять ли timestamp темы в БД (добавление в клиент остаётся best-effort
+        }
         //и не блокирует фиксацию найденного обновления)
         $saved = (bool) file_put_contents($path, $torrent);
 
@@ -609,7 +612,7 @@ class Sys
             $useTorrent = Database::getSetting('useTorrent');
             if ($useTorrent)
             {
-                $status = Sys::addToClient($id, $name, $path, $hash, $tracker, $date_str);
+                $status = Sys::addToClient($id, $name, $path, $hash, $tracker, $date_str, $old_files);
                 if ($status['status'])
                     $message = $message.' И добавлен в torrent-клиент.';
                 else

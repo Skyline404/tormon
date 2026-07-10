@@ -2,7 +2,7 @@
 class qBittorrent
 {
     #добавляем новую закачку в torrent-клиент, обновляем hash в базе
-    public static function addNew($id, $file, $hash, $tracker)
+    public static function addNew($id, $file, $hash, $tracker, $old_files = array())
     {
         #получаем настройки из базы
         $settings = Database::getAllSetting();
@@ -124,6 +124,35 @@ class qBittorrent
 
             #обновляем hash в базе
             Database::updateHash($id, $hashNew);
+
+            if (!empty($old_files)) {
+                curl_setopt($MainCurl, CURLOPT_URL, $torrentAddress."/api/v2/torrents/files?hash=".urlencode($hashNew));
+                curl_setopt($MainCurl, CURLOPT_POST, false);
+                $files_response = curl_exec($MainCurl);
+                $new_files = json_decode($files_response, true);
+                
+                if (is_array($new_files)) {
+                    $prio_ids = array();
+                    foreach ($new_files as $f) {
+                        if (in_array($f['name'], $old_files)) {
+                            $prio_ids[] = $f['index'];
+                        }
+                    }
+                    if (!empty($prio_ids)) {
+                        $prio_data = array(
+                            'hash' => $hashNew,
+                            'id' => implode('|', $prio_ids),
+                            'priority' => 0
+                        );
+                        curl_setopt($MainCurl, CURLOPT_URL, $torrentAddress."/api/v2/torrents/filePrio");
+                        curl_setopt($MainCurl, CURLOPT_POST, true);
+                        curl_setopt($MainCurl, CURLOPT_POSTFIELDS, http_build_query($prio_data));
+                        curl_exec($MainCurl);
+                    }
+                }
+                curl_setopt($MainCurl, CURLOPT_POST, true);
+                curl_setopt($MainCurl, CURLOPT_POSTFIELDS, '');
+            }
 
             //сбрасываем варнинг
             Database::clearWarnings('qBittorrent');
