@@ -184,7 +184,7 @@ class qBittorrent
             }
 
             // Форсированно снимаем с паузы
-            curl_setopt($MainCurl, CURLOPT_URL, $torrentAddress."/api/v2/torrents/resume");
+            curl_setopt($MainCurl, CURLOPT_URL, $torrentAddress."/api/v2/torrents/start");
             curl_setopt($MainCurl, CURLOPT_POST, true);
             curl_setopt($MainCurl, CURLOPT_POSTFIELDS, http_build_query(array('hashes' => $hashNew)));
             curl_exec($MainCurl);
