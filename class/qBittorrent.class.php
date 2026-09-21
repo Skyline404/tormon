@@ -94,6 +94,7 @@ class qBittorrent
             'autoTMM'     => empty($pathToDownload) ? 'true' : 'false',
             'savepath'    => $pathToDownload,
             'root_folder' => 'true',
+            'paused'      => 'false',
         );
         if (!empty($category))
             $data['category'] = $category;
