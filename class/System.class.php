@@ -2,7 +2,7 @@
 class Sys
 {
     //URL для проверки наличия подключения к интернету
-    const INTERNET_CHECK_URL = 'https://ya.ru/';
+    const INTERNET_CHECK_URL = 'https://example.com/';
 
     // cf_clearance/UA, которыми getUrlContent() воспользовался при последнем
     // автоматическом CF-фолбэке на Byparr — чтобы вызывающий код мог переиспользовать
