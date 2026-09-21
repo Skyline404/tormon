@@ -54,14 +54,19 @@ class qBittorrent
         {
             // Пытаемся получить список старых файлов перед удалением старого торрента
             curl_setopt($MainCurl, CURLOPT_URL, $torrentAddress."/api/v2/torrents/files?hash=".urlencode($hash));
-            curl_setopt($MainCurl, CURLOPT_POST, false);
+            curl_setopt($MainCurl, CURLOPT_HTTPGET, true);
             $old_files_response = curl_exec($MainCurl);
             $old_files_json = json_decode($old_files_response, true);
             if (is_array($old_files_json)) {
                 $old_files = array();
                 foreach ($old_files_json as $of) {
-                    $old_files[] = basename($of['name']);
+                    $name = basename($of['name']);
+                    // ТЕСТ: Делаем вид, что 10-й серии раньше не было
+                    if (strpos($name, '10') === false) {
+                        $old_files[] = $name;
+                    }
                 }
+                file_put_contents('/tmp/qbit_debug1.log', "Old files: " . print_r($old_files, true));
             }
             curl_setopt($MainCurl, CURLOPT_POST, true);
 
@@ -149,7 +154,7 @@ class qBittorrent
 
             if (!empty($old_files)) {
                 curl_setopt($MainCurl, CURLOPT_URL, $torrentAddress."/api/v2/torrents/files?hash=".urlencode($hashNew));
-                curl_setopt($MainCurl, CURLOPT_POST, false);
+                curl_setopt($MainCurl, CURLOPT_HTTPGET, true);
                 $files_response = curl_exec($MainCurl);
                 $new_files = json_decode($files_response, true);
                 
@@ -168,6 +173,7 @@ class qBittorrent
                         }
                     }
                     if (!empty($prio_ids)) {
+                        file_put_contents('/tmp/qbit_debug2.log', "Prio IDs: " . print_r($prio_ids, true));
                         $prio_data = array(
                             'hash' => $hashNew,
                             'id' => implode('|', $prio_ids),
