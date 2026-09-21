@@ -60,13 +60,8 @@ class qBittorrent
             if (is_array($old_files_json)) {
                 $old_files = array();
                 foreach ($old_files_json as $of) {
-                    $name = basename($of['name']);
-                    // ТЕСТ: Делаем вид, что 10-й серии раньше не было
-                    if (strpos($name, '10') === false) {
-                        $old_files[] = $name;
-                    }
+                    $old_files[] = basename($of['name']);
                 }
-                file_put_contents('/tmp/qbit_debug1.log', "Old files: " . print_r($old_files, true));
             }
             curl_setopt($MainCurl, CURLOPT_POST, true);
 
@@ -145,8 +140,12 @@ class qBittorrent
                 curl_setopt($MainCurl, CURLOPT_URL, $torrentAddress."/api/v2/torrents/info");
                 curl_setopt($MainCurl, CURLOPT_POSTFIELDS, http_build_query($data));
                 $response = curl_exec($MainCurl);
-                $rdata = json_decode($response)[0];
-                $hashNew = $rdata->hash;
+                $rdata = json_decode($response);
+                if (is_array($rdata) && !empty($rdata)) {
+                    $hashNew = $rdata[0]->hash;
+                } else {
+                    $hashNew = $hash; // Fallback to old hash if qBittorrent didn't register it in time
+                }
             }
 
             #обновляем hash в базе
@@ -173,7 +172,6 @@ class qBittorrent
                         }
                     }
                     if (!empty($prio_ids)) {
-                        file_put_contents('/tmp/qbit_debug2.log', "Prio IDs: " . print_r($prio_ids, true));
                         $prio_data = array(
                             'hash' => $hashNew,
                             'id' => implode('|', $prio_ids),
