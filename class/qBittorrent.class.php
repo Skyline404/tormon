@@ -94,7 +94,7 @@ class qBittorrent
             'autoTMM'     => empty($pathToDownload) ? 'true' : 'false',
             'savepath'    => $pathToDownload,
             'root_folder' => 'true',
-            'paused'      => 'false',
+            
         );
         if (!empty($category))
             $data['category'] = $category;
@@ -182,6 +182,12 @@ class qBittorrent
                 curl_setopt($MainCurl, CURLOPT_POST, true);
                 curl_setopt($MainCurl, CURLOPT_POSTFIELDS, '');
             }
+
+            // Форсированно снимаем с паузы
+            curl_setopt($MainCurl, CURLOPT_URL, $torrentAddress."/api/v2/torrents/resume");
+            curl_setopt($MainCurl, CURLOPT_POST, true);
+            curl_setopt($MainCurl, CURLOPT_POSTFIELDS, http_build_query(array('hashes' => $hashNew)));
+            curl_exec($MainCurl);
 
             //сбрасываем варнинг
             Database::clearWarnings('qBittorrent');
