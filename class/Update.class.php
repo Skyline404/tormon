@@ -49,7 +49,14 @@ class Update {
             $xml_page = @simplexml_load_string($page);
             $ROOTPATH = str_replace('class', '', dirname(__FILE__));
             $dbType = Config::read('db.type');
-            
+
+            if ($xml_page === false || !isset($xml_page->update))
+            {
+                Errors::setWarnings('system', 'update_fail');
+                echo 'Не удалось загрузить update.xml' . "\r\n" . '<br />';
+                return;
+            }
+
             $count = is_countable($xml_page->update) ? count($xml_page->update) - 1 : 0;
             
             $version = json_decode(file_get_contents($ROOTPATH.'version.txt'));
@@ -104,9 +111,9 @@ class Update {
                                 {
                                     foreach ($createFolders->create as $folder)
                                     {
-                                        if (!mkdir($ROOTPATH . $folder, 0777, true))
+                                        if (!is_dir($ROOTPATH . $folder) && !mkdir($ROOTPATH . $folder, 0777, true))
                                         {
-                                            echo 'Не удалось создать директорию: ' . $file . ', обновление прервано.' . "\r\n" . '<br />';
+                                            echo 'Не удалось создать директорию: ' . $folder . ', обновление прервано.' . "\r\n" . '<br />';
                                             Update::$systemFail = TRUE;
                                         }
                                         else
@@ -210,13 +217,32 @@ class Update {
     
             if (Update::$isUpdated)
             {
+                $changelog = Sys::getChangelog(Update::$updVersion);
                 $msg = 'Обновление до версии: ' . Update::$updVersion . ' выполнено успешно.' . "\r\n" . '<br />';
                 echo $msg;
                 $serverAddress = Database::getSetting('serverAddress');
                 Database::clearWarnings('system');
                 Database::setUpdateNotification(0);
+                $newsId = 'updated_' . Update::$updVersion;
+                if ( ! Database::checkNewsExist($newsId))
+                {
+                    if ( ! empty($changelog))
+                    {
+                        $lines = explode("\n", $changelog);
+                        $htmlLines = [];
+                        foreach ($lines as $i => $line)
+                            $htmlLines[] = ($i === 0) ? '<b>' . htmlspecialchars($line) . '</b>' : htmlspecialchars($line);
+                        $newsHtml = implode('<br />', $htmlLines);
+                    }
+                    else
+                        $newsHtml = '<b>Обновление до версии ' . htmlspecialchars(Update::$updVersion) . ' выполнено успешно.</b>';
+                    Database::insertNews($newsId, $newsHtml);
+                }
+                $notifyMsg = 'Обновление до версии: ' . Update::$updVersion . ' выполнено успешно.';
+                if ( ! empty($changelog))
+                    $notifyMsg .= "\n\n" . $changelog;
                 if (Update::$isCLI)
-                    Notification::sendNotification('news', date('r'), 0, $msg, 0);
+                    Notification::sendNotification('news', date('r'), 0, $notifyMsg, 0);
                 else
                     echo 'Перейти на <a href="' . $serverAddress . '">главную страницу</a>.<br />';
             }

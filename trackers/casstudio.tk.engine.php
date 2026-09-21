@@ -78,7 +78,7 @@ class casstudio
     }
 
 	//функция получения кук
-	protected static function getCookie($tracker)
+	public static function getCookie($tracker)
 	{
 		//проверяем заполнены ли учётные данные
 		if (Database::checkTrackersCredentialsExist($tracker))

@@ -29,6 +29,30 @@ function get_token()
     return $_GET['token'] ?? '';
 }
 
+function php_cli_binary()
+{
+    $configured = Config::read('php.cli');
+    if ( ! empty($configured))
+        return is_executable($configured) ? $configured : null;
+
+    if (PHP_SAPI === 'cli')
+        return PHP_BINARY;
+
+    $candidates = [
+        PHP_BINDIR . '/php' . PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION,
+        PHP_BINDIR . '/php' . PHP_MAJOR_VERSION . PHP_MINOR_VERSION,
+        PHP_BINDIR . '/php',
+        '/usr/local/bin/php',
+        '/usr/bin/php',
+    ];
+
+    foreach ($candidates as $candidate)
+        if (is_executable($candidate))
+            return $candidate;
+
+    return null;
+}
+
 function parse_tracker_url($rawUrl)
 {
     $url = parse_url($rawUrl);
@@ -194,10 +218,12 @@ elseif ($resource === 'torrents' && $httpMethod === 'GET')
 
 elseif ($resource === 'torrents' && $httpMethod === 'POST')
 {
-    $b       = body();
-    $rawUrl  = trim($b['url'] ?? '');
-    $name    = trim($b['name'] ?? '');
-    $tracker = trim($b['tracker'] ?? '');
+    $b        = body();
+    $rawUrl   = trim($b['url'] ?? '');
+    $name     = trim($b['name'] ?? '');
+    $tracker  = trim($b['tracker'] ?? '');
+    $savePath = trim($b['path'] ?? '');
+    $category = trim($b['category'] ?? '');
 
     if (!empty($rawUrl))
     {
@@ -214,7 +240,7 @@ elseif ($resource === 'torrents' && $httpMethod === 'POST')
         if (!Database::checkThremExist($tracker, $threme))
             api_respond(false, 'Тема уже отслеживается.', null, 409);
 
-        Database::setThreme($tracker, $name, '', $threme, 1);
+        Database::setThreme($tracker, $name, $savePath, $threme, 1, $category);
         api_respond(true, 'Тема добавлена.', ['tracker' => $tracker, 'threme' => $threme], 201);
     }
     elseif (!empty($tracker) && !empty($name))
@@ -233,7 +259,7 @@ elseif ($resource === 'torrents' && $httpMethod === 'POST')
         if (!Database::checkSerialExist($tracker, $name, $hd))
             api_respond(false, 'Сериал уже отслеживается.', null, 409);
 
-        Database::setSerial($tracker, $name, '', $hd);
+        Database::setSerial($tracker, $name, $savePath, $hd, $category);
         api_respond(true, 'Сериал добавлен.', ['tracker' => $tracker, 'name' => $name, 'hd' => $hd], 201);
     }
     else
@@ -264,7 +290,14 @@ elseif ($resource === 'run' && $httpMethod === 'POST')
     if (!$engineFile || !file_exists($engineFile))
         api_respond(false, 'engine.php не найден.', null, 500);
 
-    exec(PHP_BINARY . ' ' . escapeshellarg($engineFile) . ' > /dev/null 2>&1 &');
+    if ( ! function_exists('exec'))
+        api_respond(false, 'Функция exec отключена в PHP, движок запустить нельзя.', null, 500);
+
+    $php = php_cli_binary();
+    if ($php === null)
+        api_respond(false, 'CLI-интерпретатор PHP не найден. Укажите путь в config.php: Config::write(\'php.cli\', \'/usr/bin/php8.3\');', null, 500);
+
+    exec(escapeshellarg($php) . ' ' . escapeshellarg($engineFile) . ' > /dev/null 2>&1 &');
     api_respond(true, 'Движок запущен.', null, 202);
 }
 

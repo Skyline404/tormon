@@ -210,10 +210,21 @@ class Database
         $stmt = self::newStatement("UPDATE `settings` SET `val` = :val WHERE `key` = :setting");
         $stmt->bindParam(':setting', $setting);
         $stmt->bindParam(':val', $val);
-        if ($stmt->execute())
-            return TRUE;
-        else
+        if ( ! $stmt->execute())
             return $stmt->errorInfo();
+
+        // строки могло не быть, если настройка добавлена в схему уже после разворачивания
+        // этой установки и не попала в update.xml-миграцию (UPDATE такое молча пропускает)
+        if ($stmt->rowCount() == 0)
+        {
+            $insertStmt = self::newStatement("INSERT INTO `settings` (`key`, `val`) VALUES (:setting, :val)");
+            $insertStmt->bindParam(':setting', $setting);
+            $insertStmt->bindParam(':val', $val);
+            if ( ! $insertStmt->execute())
+                return $insertStmt->errorInfo();
+        }
+
+        return TRUE;
     }
 
     public static function updateAddress($type, $service, $address)
@@ -290,7 +301,7 @@ class Database
                 $resultArray[$i]['login'] = $row['log'];
                 $resultArray[$i]['password'] = Crypto::decrypt($row['pass']);
                 $resultArray[$i]['passkey'] = Crypto::decrypt($row['passkey']);
-                $resultArray[$i]['cookie'] = $row['cookie'];
+                $resultArray[$i]['cookie'] = Crypto::decrypt($row['cookie']);
                 $resultArray[$i]['necessarily'] = $row['necessarily'];
                 $i++;
             }
@@ -325,16 +336,11 @@ class Database
             return FALSE;
     }
 
-    public static function setCredentials($id, $login, $password, $passkey, $cookie = null)
+    public static function setCredentials($id, $login, $password, $passkey)
     {
         $password = Crypto::encrypt($password);
         $passkey = Crypto::encrypt($passkey);
-        if ($cookie !== null) {
-            $stmt = self::newStatement("UPDATE `credentials` SET `log` = :login, `pass` = :password, `passkey` = :passkey, `cookie` = :cookie WHERE `id` = :id");
-            $stmt->bindParam(':cookie', $cookie);
-        } else {
-            $stmt = self::newStatement("UPDATE `credentials` SET `log` = :login, `pass` = :password, `passkey` = :passkey WHERE `id` = :id");
-        }
+        $stmt = self::newStatement("UPDATE `credentials` SET `log` = :login, `pass` = :password, `passkey` = :passkey WHERE `id` = :id");
         $stmt->bindParam(':id', $id);
         $stmt->bindParam(':login', $login);
         $stmt->bindParam(':password', $password);
@@ -347,13 +353,13 @@ class Database
 
     public static function checkTrackersCredentialsExist($tracker)
     {
-        $stmt = self::newStatement("SELECT `log`, `pass` FROM `credentials` WHERE `tracker` = :tracker");
+        $stmt = self::newStatement("SELECT `log`, `pass`, `cookie` FROM `credentials` WHERE `tracker` = :tracker");
         $stmt->bindParam(':tracker', $tracker);
         if ($stmt->execute())
         {
             foreach ($stmt as $row)
             {
-                if ( ! empty($row['log']) && ! empty($row['pass']))
+                if (( ! empty($row['log']) && ! empty($row['pass'])) || ! empty($row['cookie']))
                     return TRUE;
                 else
                     return FALSE;
@@ -1159,6 +1165,17 @@ class Database
             return TRUE;
         else
             return FALSE;
+    }
+
+    public static function getCfUserAgent()
+    {
+        $val = self::getSetting('cf_userAgent');
+        return $val !== null ? $val : '';
+    }
+
+    public static function setCfUserAgent($useragent)
+    {
+        return self::updateSettings('cf_userAgent', $useragent);
     }
 
     public static function saveToTemp($id, $name, $path, $tracker, $date)

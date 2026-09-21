@@ -178,6 +178,11 @@ if (Sys::checkCurl())
 
         if ( ! empty($result))
             $pendingUpdates = $pendingUpdates + $result;
+
+        if (!empty($response['cf_cookies']))
+            Database::setCookie($tracker, $response['cf_cookies']);
+        if (!empty($response['cf_useragent']))
+            Database::setCfUserAgent($response['cf_useragent']);
     }
 
     if ( ! empty($pendingUpdates))
@@ -303,7 +308,14 @@ if (Sys::checkCurl())
         {
             if ( ! Database::getUpdateNotification())
             {
-                $msg = 'Выпущена новая версия ТМ, автоматическое обновление отключено, обновите систему самостоятельно.';
+                $latestVersion = Sys::getLatestVersion();
+                $changelog     = Sys::getChangelog($latestVersion);
+                $msg = 'Выпущена новая версия ТМ' . ($latestVersion ? ' ' . $latestVersion : '') . ', автоматическое обновление отключено, обновите систему самостоятельно.';
+                if ( ! empty($changelog))
+                    $msg .= "\n\n" . $changelog;
+                $newsId = 'update_' . ($latestVersion ?: time());
+                if ( ! Database::checkNewsExist($newsId))
+                    Database::insertNews($newsId, $msg);
                 Notification::sendNotification('news', date('r'), 0, $msg, 0);
                 Database::setUpdateNotification(1);
             }

@@ -13,6 +13,6 @@
         }
     })
 </script>
-<script src="assets/js/scripts.min.js"></script>
+<script src="assets/js/scripts.min.js?v=<?= filemtime(__DIR__.'/../assets/js/scripts.min.js') ?>"></script>
 </body>
 </html>

@@ -4,6 +4,8 @@ class kinozalme
 	protected static $sess_cookie;
 	protected static $exucution;
 	protected static $warning;
+	public static $cf_cookies   = '';
+	public static $cf_userAgent = '';
 
 	//проверяем cookie
 	public static function checkCookie($sess_cookie)
@@ -98,7 +100,7 @@ class kinozalme
 	}
 
 	//функция получения кук
-	protected static function getCookie($tracker)
+	public static function getCookie($tracker)
 	{
 		//проверяем заполнены ли учётные данные
 		if (Database::checkTrackersCredentialsExist($tracker))
@@ -139,9 +141,20 @@ class kinozalme
 					kinozalme::$exucution = FALSE;
 				}
 				//если подходят - получаем куки
-				elseif (preg_match_all('/Set-Cookie: (.+);/iU', $page, $array))
+				// getUrlContent мог решить CF через FlareSolverr — куки хранятся в Sys::$lastCfCookies
+				elseif (preg_match_all('/Set-Cookie: (.+);/iU', $page, $array)
+					|| (!empty(Sys::$lastCfCookies) && preg_match('/uid=/', Sys::$lastCfCookies)))
 				{
-					kinozalme::$sess_cookie = $array[1][0].'; '.$array[1][1].';';
+					if (!empty(Sys::$lastCfCookies) && preg_match('/uid=/', Sys::$lastCfCookies))
+					{
+						kinozalme::$sess_cookie  = Sys::$lastCfCookies;
+						kinozalme::$cf_cookies   = Sys::$lastCfCookies;
+						kinozalme::$cf_userAgent = Sys::$lastCfUserAgent;
+					}
+					else
+					{
+						kinozalme::$sess_cookie = $array[1][0].'; '.$array[1][1].';';
+					}
 					Database::setCookie($tracker, kinozalme::$sess_cookie);
 					//запускам процесс выполнения, т.к. не может работать без кук
 					kinozalme::$exucution = TRUE;
@@ -282,6 +295,9 @@ class kinozalme
 	{
 		extract($params);
 		$cookie = Database::getCookie($tracker);
+		$cfUa = Database::getCfUserAgent();
+		if (!empty($cfUa))
+			kinozalme::$cf_userAgent = $cfUa;
 		if (kinozalme::checkCookie($cookie))
 		{
 			kinozalme::$sess_cookie = $cookie;
@@ -302,6 +318,8 @@ class kinozalme
 		$options = array(
 			CURLOPT_COOKIE => kinozalme::$sess_cookie,
 		);
+		if (!empty(kinozalme::$cf_userAgent))
+			$options[CURLOPT_USERAGENT] = kinozalme::$cf_userAgent;
 
 		if (Sys::checkCurlVersion() == 'old')
 		{
@@ -323,16 +341,15 @@ class kinozalme
 		extract($params);
 		$return = NULL;
 
-		$page = iconv('windows-1251', 'utf-8//IGNORE', $page);
+		$page = mb_check_encoding($page, 'UTF-8') ? $page : iconv('windows-1251', 'utf-8//IGNORE', $page);
 
 		if ( ! empty($page))
 		{
 			preg_match('/(<title>.*<\/title>)/', $page, $titlearray);
 			//ищем на странице дату регистрации торрента
-			if (preg_match('/<li>Обновлен<span class=\"floatright green n\">(.*)<\/span><\/li>/', $page, $array))
+			if (preg_match('/<li>Обновлен<span class="floatright green n">(.*)<\/span><\/li>/', $page, $array)
+				|| preg_match('/<li>Залит<span class="floatright green n">(.*)<\/span><\/li>/', $page, $array))
 				kinozalme::work($titlearray, $array, $id, $tracker, $name, $torrent_id, $timestamp, $hash, $auto_update, $return);
-			elseif (preg_match('/<li>Залит<span class=\"floatright green n\">(.*)<\/span><\/li>/', $page, $array))
-			    kinozalme::work($titlearray, $array, $id, $tracker, $name, $torrent_id, $timestamp, $hash, $auto_update, $return);
 			else
 			{
 				//устанавливаем варнинг

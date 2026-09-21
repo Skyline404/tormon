@@ -108,7 +108,7 @@ if (isset($_POST['action']))
     				$threme = $array[0];
     			}
 
-    			if (is_array(Database::getCredentials($tracker)))
+    			if (Database::checkTrackersCredentialsExist($tracker))
     			{
     				$engineFile = $dir.'/trackers/'.$tracker.'.engine.php';
     				if (file_exists($engineFile))
@@ -203,7 +203,7 @@ if (isset($_POST['action']))
 	{
 
 		$tracker = $_POST['tracker'];
-		if (is_array(Database::getCredentials($tracker)))
+		if (Database::checkTrackersCredentialsExist($tracker))
 		{
 			$engineFile = $dir.'/trackers/'.$tracker.'.engine.php';
 			if (file_exists($engineFile))
@@ -297,7 +297,7 @@ if (isset($_POST['action']))
     				$threme = $array[0];
     			}
 
-    			if (is_array(Database::getCredentials($tracker)))
+    			if (Database::checkTrackersCredentialsExist($tracker))
     			{
     				$engineFile = $dir.'/trackers/'.$tracker.'.engine.php';
     				if (file_exists($engineFile))
@@ -370,7 +370,7 @@ if (isset($_POST['action']))
 	if ($_POST['action'] == 'user_add')
 	{
 		$tracker = $_POST['tracker'];
-		if (is_array(Database::getCredentials($tracker)))
+		if (Database::checkTrackersCredentialsExist($tracker))
 		{
 			$engineFile = $dir.'/trackers/'.$tracker.'.search.php';
 			if (file_exists($engineFile))
@@ -471,8 +471,9 @@ if (isset($_POST['action']))
 	{
     	if ( ! isset($_POST['passkey']))
     	    $_POST['passkey'] = '';
-        $cookie = isset($_POST['cookie']) ? $_POST['cookie'] : null;
-		Database::setCredentials($_POST['id'], $_POST['log'], $_POST['pass'], $_POST['passkey'], $cookie);
+		Database::setCredentials($_POST['id'], $_POST['log'], $_POST['pass'], $_POST['passkey']);
+		if ( ! empty($_POST['cookie']) && ! empty($_POST['tracker']))
+		    Database::setCookie($_POST['tracker'], $_POST['cookie']);
     	$return['error'] = FALSE;
         $return['msg'] = 'Данные для трекера обновлены.';
         echo json_encode($return);
@@ -500,7 +501,7 @@ if (isset($_POST['action']))
 		Database::updateSettings('httpTimeout', (int) $_POST['httpTimeout']);
 		Database::updateSettings('flaresolverrUrl', trim($_POST['flaresolverrUrl']));
 
-		$config = Config::read('ext_filename');
+		$config = Config::read('ext_filename') ?: dirname(__FILE__).'/config.xml';
 		if (file_put_contents($config, $_POST['settings']))
 		{
 			$return['error'] = FALSE;

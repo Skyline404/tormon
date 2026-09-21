@@ -4,6 +4,8 @@ class kinozalguru
 	protected static $sess_cookie;
 	protected static $exucution;
 	protected static $warning;
+	public static $cf_cookies   = '';
+	public static $cf_userAgent = '';
 
 	//проверяем cookie
 	public static function checkCookie($sess_cookie)
@@ -139,9 +141,20 @@ class kinozalguru
 					kinozalguru::$exucution = FALSE;
 				}
 				//если подходят - получаем куки
-				elseif (preg_match_all('/Set-Cookie: (.+);/iU', $page, $array))
+				// getUrlContent мог решить CF через FlareSolverr — куки хранятся в Sys::$lastCfCookies
+				elseif (preg_match_all('/Set-Cookie: (.+);/iU', $page, $array)
+					|| (!empty(Sys::$lastCfCookies) && preg_match('/uid=/', Sys::$lastCfCookies)))
 				{
-					kinozalguru::$sess_cookie = $array[1][0].'; '.$array[1][1].';';
+					if (!empty(Sys::$lastCfCookies) && preg_match('/uid=/', Sys::$lastCfCookies))
+					{
+						kinozalguru::$sess_cookie  = Sys::$lastCfCookies;
+						kinozalguru::$cf_cookies   = Sys::$lastCfCookies;
+						kinozalguru::$cf_userAgent = Sys::$lastCfUserAgent;
+					}
+					else
+					{
+						kinozalguru::$sess_cookie = $array[1][0].'; '.$array[1][1].';';
+					}
 					Database::setCookie($tracker, kinozalguru::$sess_cookie);
 					//запускам процесс выполнения, т.к. не может работать без кук
 					kinozalguru::$exucution = TRUE;
@@ -282,6 +295,9 @@ class kinozalguru
 	{
 		extract($params);
 		$cookie = Database::getCookie($tracker);
+		$cfUa = Database::getCfUserAgent();
+		if (!empty($cfUa))
+			kinozalguru::$cf_userAgent = $cfUa;
 		if (kinozalguru::checkCookie($cookie))
 		{
 			kinozalguru::$sess_cookie = $cookie;
@@ -302,6 +318,8 @@ class kinozalguru
 		$options = array(
 			CURLOPT_COOKIE => kinozalguru::$sess_cookie,
 		);
+		if (!empty(kinozalguru::$cf_userAgent))
+			$options[CURLOPT_USERAGENT] = kinozalguru::$cf_userAgent;
 
 		if (Sys::checkCurlVersion() == 'old')
 		{
@@ -323,16 +341,15 @@ class kinozalguru
 		extract($params);
 		$return = NULL;
 
-		$page = iconv('windows-1251', 'utf-8//IGNORE', $page);
+		$page = mb_check_encoding($page, 'UTF-8') ? $page : iconv('windows-1251', 'utf-8//IGNORE', $page);
 
 		if ( ! empty($page))
 		{
 			preg_match('/(<title>.*<\/title>)/', $page, $titlearray);
 			//ищем на странице дату регистрации торрента
-			if (preg_match('/<li>Обновлен<span class=\"floatright green n\">(.*)<\/span><\/li>/', $page, $array))
+			if (preg_match('/<li>Обновлен<span class="floatright green n">(.*)<\/span><\/li>/', $page, $array)
+				|| preg_match('/<li>Залит<span class="floatright green n">(.*)<\/span><\/li>/', $page, $array))
 				kinozalguru::work($titlearray, $array, $id, $tracker, $name, $torrent_id, $timestamp, $hash, $auto_update, $return);
-			elseif (preg_match('/<li>Залит<span class=\"floatright green n\">(.*)<\/span><\/li>/', $page, $array))
-			    kinozalguru::work($titlearray, $array, $id, $tracker, $name, $torrent_id, $timestamp, $hash, $auto_update, $return);
 			else
 			{
 				//устанавливаем варнинг

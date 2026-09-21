@@ -55,7 +55,7 @@ class nnmclub
 	}
 
 	//функция получения кук
-	protected static function getCookie($tracker)
+	public static function getCookie($tracker)
 	{
 		//проверяем заполнены ли учётные данные
 		if (Database::checkTrackersCredentialsExist($tracker))
@@ -64,6 +64,18 @@ class nnmclub
 			$credentials = Database::getCredentials($tracker);
 			$login = iconv('utf-8', 'windows-1251', $credentials['login']);
 			$password = $credentials['password'];
+
+			// cookie-only режим: логин/пароль не заданы, обновить автоматически нельзя
+			if (empty($login) && empty($password))
+			{
+				if (nnmclub::$warning == NULL)
+				{
+					nnmclub::$warning = TRUE;
+					Errors::setWarnings($tracker, 'credential_miss');
+				}
+				nnmclub::$exucution = FALSE;
+				return;
+			}
 
             // Сначала запрашиваем страницу логина для получения кода CSRF
             $login_page = Sys::getUrlContent(

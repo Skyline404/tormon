@@ -22,7 +22,7 @@ CREATE TABLE `credentials` (
   `tracker` varchar(30) DEFAULT NULL,
   `log` varchar(30) DEFAULT NULL,
   `pass` varchar(100) DEFAULT NULL,
-  `cookie` varchar(255) DEFAULT NULL,
+  `cookie` text DEFAULT NULL,
   `passkey` varchar(32) DEFAULT NULL,
   `type` varchar(32) DEFAULT NULL,
   `necessarily` tinyint(1) NOT NULL DEFAULT '1',
@@ -60,7 +60,7 @@ UNLOCK TABLES;
 DROP TABLE IF EXISTS `news`;
 
 CREATE TABLE `news` (
-  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+  `id` varchar(100) NOT NULL,
   `text` text,
   `new` tinyint(1) unsigned NOT NULL DEFAULT '1',
   PRIMARY KEY (`id`)
@@ -93,7 +93,9 @@ VALUES
 	(9,'Pushall','', 'notification'),
 	(10,'Pushall','', 'warning'),
 	(11,'Telegram','', 'notification'),
-	(12,'Telegram','', 'warning');
+	(12,'Telegram','', 'warning'),
+	(13,'Gotify','', 'notification'),
+	(14,'Gotify','', 'warning');
 
 UNLOCK TABLES;
 
@@ -128,7 +130,6 @@ VALUES
 	(19,'serverAddress',''),
 	(20,'deleteDistribution','0'),
 	(24,'sendUpdate','0'),
-	(25,'sendWarning','0'),
 	(29,'debug','0'),
 	(30,'rss','1'),
 	(31,'debugFor',''),
@@ -141,7 +142,8 @@ VALUES
 	(40,'userAgent','Mozilla/5.0 (X11; Linux x86_64; rv:133.0) Gecko/20100101 Firefox/133.0'),
 	(41,'flaresolverrUrl',''),
 	(42,'ApiKey',''),
-	(43,'qbitCategory','');
+	(43,'qbitCategory',''),
+	(44,'cf_userAgent','');
 
 UNLOCK TABLES;
 

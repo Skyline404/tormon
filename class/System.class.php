@@ -4,6 +4,12 @@ class Sys
     //URL для проверки наличия подключения к интернету
     const INTERNET_CHECK_URL = 'https://ya.ru/';
 
+    // cf_clearance/UA, которыми getUrlContent() воспользовался при последнем
+    // автоматическом CF-фолбэке на Byparr — чтобы вызывающий код мог переиспользовать
+    // их в следующем запросе (иначе кука не совпадёт с фингерпринтом и Cloudflare её сбросит)
+    public static $lastCfCookies = '';
+    public static $lastCfUserAgent = '';
+
     //проверяем есть ли конфигурационный файл
     public static function checkConfigExist()
     {
@@ -133,6 +139,57 @@ class Sys
         }
     }
 
+    public static function getLatestVersion()
+    {
+        $page = Sys::getUrlContent(
+            array(
+                'type'           => 'GET',
+                'returntransfer' => 1,
+                'url'            => 'https://xml.tormon.ru/version.xml',
+            )
+        );
+        $xml = @simplexml_load_string($page);
+        if (false !== $xml && isset($xml->current_version))
+            return strval($xml->current_version);
+        return NULL;
+    }
+
+    public static function getChangelog($version)
+    {
+        if (empty($version))
+            return '';
+        $txt = Sys::getUrlContent(
+            array(
+                'type'           => 'GET',
+                'returntransfer' => 1,
+                'url'            => 'https://raw.githubusercontent.com/ElizarovEugene/TorrentMonitor/master/changelog.txt',
+            )
+        );
+        if (empty($txt))
+            return '';
+        $lines = explode("\n", $txt);
+        $found = false;
+        $result = [];
+        foreach ($lines as $line)
+        {
+            if ( ! $found)
+            {
+                if (strpos($line, '- ' . $version . ':') !== false)
+                {
+                    $found = true;
+                    $result[] = rtrim($line);
+                }
+            }
+            else
+            {
+                if (preg_match('/^\d{2}\.\d{2}\.\d{4}\s+-\s+\d+/', trim($line)))
+                    break;
+                $result[] = rtrim($line);
+            }
+        }
+        return trim(implode("\n", $result));
+    }
+
     //формируем curl-опции прокси для заданного url (общие настройки + потрекерный ext_proxy)
     public static function getProxyOptions($url)
     {
@@ -188,6 +245,21 @@ class Sys
         return $options;
     }
 
+    //конвертирует curl-опции прокси (getProxyOptions) в URL-строку для FlareSolverr's
+    //JSON API ("proxy": {"url": "..."}) -- FlareSolverr не умеет CURLOPT_PROXY/CURLOPT_PROXYTYPE,
+    //только явную схему в URL
+    private static function proxyOptionsToUrl($options)
+    {
+        if (empty($options[CURLOPT_PROXY]))
+            return null;
+
+        $scheme = 'http';
+        if (isset($options[CURLOPT_PROXYTYPE]) && $options[CURLOPT_PROXYTYPE] == CURLPROXY_SOCKS5_HOSTNAME)
+            $scheme = 'socks5';
+
+        return $scheme.'://'.$options[CURLOPT_PROXY];
+    }
+
     //обёртка для CURL, для более удобного использования
     public static function getUrlContent($param = null)
     {
@@ -200,7 +272,9 @@ class Sys
             if ($param['type'] == 'GET')
                 curl_setopt($ch, CURLOPT_HTTPGET, 1);
 
-            curl_setopt($ch, CURLOPT_USERAGENT, Database::getSetting('userAgent'));
+            // если передан UA браузера, решившего Cloudflare-challenge — используем его,
+            // иначе cf_clearance не совпадёт с фингерпринтом и Cloudflare сбросит куку
+            curl_setopt($ch, CURLOPT_USERAGENT, !empty($param['useragent']) ? $param['useragent'] : (Database::getCfUserAgent() ?: Database::getSetting('userAgent')));
             if (isset($param['follow']))
                 curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
 
@@ -256,17 +330,29 @@ class Sys
             $httpCode = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
             curl_close($ch);
 
-            if (($httpCode == 403 || $httpCode == 503 || $httpCode == 200) && !empty($result) && Sys::isCloudflarePage($result))
+            Sys::$lastCfCookies = '';
+            Sys::$lastCfUserAgent = '';
+
+            $viaFlareSolverr = false;
+            if (($httpCode == 403 || $httpCode == 503) && !empty($result) && Sys::isCloudflarePage($result))
             {
                 $existingCookie = isset($param['cookie']) ? $param['cookie'] : '';
-                $reqType = isset($param['type']) ? strtoupper($param['type']) : 'GET';
-                $postFields = isset($param['postfields']) ? $param['postfields'] : '';
-                $fsResult = Sys::getViaFlareSolverr($param['url'], $existingCookie, $reqType, $postFields);
+                // сохраняем исходный метод запроса — dl.php отдаёт файл только на POST,
+                // "тихий" фолбэк на GET уводит Byparr на неразрешаемый интерактивный челлендж
+                $fsMethod   = isset($param['type']) && $param['type'] == 'POST' ? 'POST' : 'GET';
+                $fsPostData = isset($param['postfields']) ? $param['postfields'] : '';
+                $fsResult = Sys::getViaFlareSolverr($param['url'], $existingCookie, $fsMethod, $fsPostData);
                 if ($fsResult !== null)
+                {
                     $result = $fsResult['body'];
+                    $viaFlareSolverr = true;
+                    Sys::$lastCfCookies = !empty($fsResult['cookies']) ? $fsResult['cookies'] : '';
+                    Sys::$lastCfUserAgent = !empty($fsResult['userAgent']) ? $fsResult['userAgent'] : '';
+                }
             }
 
-            if (isset($param['convert']) && $param['convert'] != NULL)
+            // FlareSolverr всегда возвращает UTF-8 (браузерный рендеринг) — convert не нужен
+            if (!$viaFlareSolverr && isset($param['convert']) && $param['convert'] != NULL)
                 $result = iconv($param['convert'][0], $param['convert'][1], $result);
 
             return $result;
@@ -277,13 +363,12 @@ class Sys
     {
         return strpos($body, 'cf-browser-verification') !== false
             || strpos($body, 'Just a moment') !== false
-            || stripos($body, 'turnstile') !== false
             || (stripos($body, 'cloudflare') !== false
                 && (strpos($body, 'Checking your browser') !== false
                     || strpos($body, 'DDoS protection') !== false));
     }
 
-    public static function getViaFlareSolverr(string $url, string $existingCookies = '', string $method = 'GET', string $postFields = ''): ?array
+    public static function getViaFlareSolverr(string $url, string $existingCookies = '', string $method = 'GET', string $postData = ''): ?array
     {
         $fsUrl = Database::getSetting('flaresolverrUrl');
         if (empty($fsUrl))
@@ -303,25 +388,32 @@ class Sys
             }
         }
 
-        $cmd = ($method === 'POST') ? 'request.post' : 'request.get';
-        $payload = array(
-            'cmd'        => $cmd,
+        $requestParams = array(
+            'cmd'        => $method == 'POST' ? 'request.post' : 'request.get',
             'url'        => $url,
-            'maxTimeout' => 60000,
+            'maxTimeout' => 120000,
             'cookies'    => $cookiesArr,
         );
-        if ($method === 'POST') {
-            $payload['postData'] = $postFields;
-        }
-        $postData = json_encode($payload);
+        if ($method == 'POST')
+            $requestParams['postData'] = $postData;
+
+        //прокидываем уже настроенный (в т.ч. потрекерный) прокси в FlareSolverr -- без
+        //этого FlareSolverr ходит на сайт напрямую со своего хоста, и для трекеров,
+        //заблокированных на уровне DPI/ISP (а не только Cloudflare-челленджем), запрос
+        //не проходит даже после решения челленджа
+        $proxyUrl = Sys::proxyOptionsToUrl(Sys::getProxyOptions($url));
+        if ($proxyUrl)
+            $requestParams['proxy'] = array('url' => $proxyUrl);
+
+        $requestJson = json_encode($requestParams);
 
         $ch = curl_init(rtrim($fsUrl, '/').'/v1');
         curl_setopt_array($ch, array(
             CURLOPT_POST           => 1,
-            CURLOPT_POSTFIELDS     => $postData,
+            CURLOPT_POSTFIELDS     => $requestJson,
             CURLOPT_HTTPHEADER     => array('Content-Type: application/json'),
             CURLOPT_RETURNTRANSFER => 1,
-            CURLOPT_TIMEOUT        => 120,
+            CURLOPT_TIMEOUT        => 180,
         ));
         $response = curl_exec($ch);
         curl_close($ch);
@@ -524,7 +616,9 @@ class Sys
         }
 
         if ($tracker != 'animelayer.ru' && $tracker != 'booktracker.org' && $tracker != 'casstudio.tk' && $tracker != 'riperam.org' && $tracker != 'rustorka.com' && $tracker != 'rutor.is' && $tracker != 'tr.anidub.com')
-            $forumPage = iconv('windows-1251', 'utf-8//IGNORE', $forumPage);
+            // страница могла прийти уже в UTF-8 (Byparr/FlareSolverr для rutracker.org
+            // при CF-bypass) — повторный iconv на валидном UTF-8 портит кириллицу
+            $forumPage = mb_check_encoding($forumPage, 'UTF-8') ? $forumPage : iconv('windows-1251', 'utf-8//IGNORE', $forumPage);
 
         if ($tracker == 'tr.anidub.com')
             $tracker = 'anidub.com';
@@ -549,7 +643,7 @@ class Sys
     }
 
     //добавляем в torrent-клиент
-    public static function addToClient($id, $name, $path, $hash, $tracker, $date_str, $old_files = array())
+    public static function addToClient($id, $name, $path, $hash, $tracker, $date_str)
     {
         $torrentClient = Database::getSetting('torrentClient');
         $dir = dirname(__FILE__).'/';
@@ -559,7 +653,7 @@ class Sys
         $filename = str_replace($dir.'torrents/', '', $path);
         $filename = urlencode($filename);
         $url = $server.'torrents/'.$filename;
-        $status = call_user_func($torrentClient.'::addNew', $id, $url, $hash, $tracker, $old_files);
+        $status = call_user_func($torrentClient.'::addNew', $id, $url, $hash, $tracker);
         if ($status['status'])
         {
             Database::deleteFromTemp($id);
@@ -604,14 +698,11 @@ class Sys
         $file = '['.$tracker.']_'.$file.'.torrent';
         $dir = dirname(__FILE__).'/';
         $path = str_replace('class/', '', $dir).'torrents/'.$file;
-        
-        $old_files = array();
-        if (file_exists($path)) {
-            include_once $dir.'BEncode.class.php';
-            $old_torrent = file_get_contents($path);
-            $old_files = BEncode::getFilesList($old_torrent);
+        if (file_exists($path))
             unlink($path);
-        }
+
+        //сохранён ли сам torrent-файл на диск - именно это решает caller,
+        //обновлять ли timestamp темы в БД (добавление в клиент остаётся best-effort
         //и не блокирует фиксацию найденного обновления)
         $saved = (bool) file_put_contents($path, $torrent);
 
@@ -620,7 +711,7 @@ class Sys
             $useTorrent = Database::getSetting('useTorrent');
             if ($useTorrent)
             {
-                $status = Sys::addToClient($id, $name, $path, $hash, $tracker, $date_str, $old_files);
+                $status = Sys::addToClient($id, $name, $path, $hash, $tracker, $date_str);
                 if ($status['status'])
                     $message = $message.' И добавлен в torrent-клиент.';
                 else

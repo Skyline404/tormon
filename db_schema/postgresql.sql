@@ -21,7 +21,7 @@ CREATE TABLE "credentials" (
   "tracker" varchar(30) DEFAULT NULL,
   "log" varchar(30) DEFAULT NULL,
   "pass" varchar(100) DEFAULT NULL,
-  "cookie" varchar(255) DEFAULT NULL,
+  "cookie" text DEFAULT NULL,
   "passkey" varchar(255) DEFAULT NULL,
   "type" varchar(32) DEFAULT NULL,
   "necessarily" INTEGER NOT NULL DEFAULT '1'
@@ -48,16 +48,14 @@ INSERT INTO credentials VALUES (21,'riperam.org','','','', '','forum',1);
 INSERT INTO credentials VALUES (22,'kinozal.tv','','','', '','forum',1);
 INSERT INTO credentials VALUES (23,'kinozal.guru','','','', '','forum',1);
 
-CREATE SEQUENCE "auto_id_news" START 22;
-
 CREATE TABLE "news" (
-  "id" INTEGER  PRIMARY KEY NOT NULL DEFAULT nextval('auto_id_news'),
+  "id" VARCHAR(100) PRIMARY KEY NOT NULL,
   "text" TEXT NOT NULL,
   "new" INTEGER NOT NULL DEFAULT '1'
 );
 
 
-CREATE SEQUENCE "auto_id_notifications" START 13;
+CREATE SEQUENCE "auto_id_notifications" START 15;
 
 CREATE TABLE "notifications" (
   "id" INTEGER  PRIMARY KEY NOT NULL DEFAULT nextval('auto_id_notifications'),
@@ -78,6 +76,8 @@ INSERT INTO notifications VALUES (9, 'Pushall', '', 'notification');
 INSERT INTO notifications VALUES (10, 'Pushall', '', 'warning');
 INSERT INTO notifications VALUES (11, 'Telegram', '', 'notification');
 INSERT INTO notifications VALUES (12, 'Telegram', '', 'warning');
+INSERT INTO notifications VALUES (13, 'Gotify', '', 'notification');
+INSERT INTO notifications VALUES (14, 'Gotify', '', 'warning');
 
 CREATE SEQUENCE "auto_id_settings" START 42;
 
@@ -103,7 +103,6 @@ INSERT INTO settings VALUES (16, 'deleteOldFiles', '0');
 INSERT INTO settings VALUES (19, 'serverAddress', '');
 INSERT INTO settings VALUES (20, 'deleteDistribution', '0');
 INSERT INTO settings VALUES (24, 'sendUpdate', '0');
-INSERT INTO settings VALUES (25, 'sendWarning', '0');
 INSERT INTO settings VALUES (29, 'debug', '0');
 INSERT INTO settings VALUES (30, 'rss', '1');
 INSERT INTO settings VALUES (31, 'debugFor', '');
@@ -117,6 +116,7 @@ INSERT INTO settings VALUES (40, 'userAgent', 'Mozilla/5.0 (X11; Linux x86_64; r
 INSERT INTO settings VALUES (41, 'flaresolverrUrl', '');
 INSERT INTO settings VALUES (42, 'ApiKey', '');
 INSERT INTO settings VALUES (43, 'qbitCategory', '');
+INSERT INTO settings VALUES (44, 'cf_userAgent', '');
 
 CREATE TABLE "temp" (
   "id" INTEGER PRIMARY KEY NOT NULL,

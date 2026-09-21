@@ -60,16 +60,18 @@ $_tmCategories    = Database::getDistinctCategories();
                 </label>
             </div>
 
-            <div class="modal__buttons">
-                <button
-                    @click="closeModalAdd()"
-                    type="button"
-                    class="btn btn--secondary"
-                    >Закрыть</button>
-                <button
-                    type="submit"
-                    class="btn btn--primary"
-                    >Добавить</button>
+            <div class="modal__buttons" :style="loading && 'justify-content:center'">
+                <button x-show="!loading" @click="closeModalAdd()" type="button" class="btn btn--secondary">Закрыть</button>
+                <button x-show="!loading" type="submit" class="btn btn--primary">Добавить</button>
+                <div x-show="loading">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" style="width:2rem;height:2rem;display:block">
+                        <circle cx="50" cy="50" r="40" stroke="var(--c-primary)" fill="none" stroke-width="20" stroke-linecap="round"></circle>
+                        <circle cx="50" cy="50" r="40" stroke="var(--c-bg)" fill="none" stroke-width="10" stroke-linecap="round">
+                            <animate attributeName="stroke-dashoffset" dur="2s" repeatCount="indefinite" from="0" to="502"></animate>
+                            <animate attributeName="stroke-dasharray" dur="2s" repeatCount="indefinite" values="225.9 25.099999999999994;1 250;225.9 25.099999999999994"></animate>
+                        </circle>
+                    </svg>
+                </div>
             </div>
 
         </form>
@@ -139,16 +141,18 @@ $_tmCategories    = Database::getDistinctCategories();
                 </label>
             </div>
 
-            <div class="modal__buttons">
-                <button
-                    @click="closeModalAdd()"
-                    type="button"
-                    class="btn btn--secondary"
-                    >Закрыть</button>
-                <button
-                    type="submit"
-                    class="btn btn--primary"
-                    >Добавить</button>
+            <div class="modal__buttons" :style="loading && 'justify-content:center'">
+                <button x-show="!loading" @click="closeModalAdd()" type="button" class="btn btn--secondary">Закрыть</button>
+                <button x-show="!loading" type="submit" class="btn btn--primary">Добавить</button>
+                <div x-show="loading">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" style="width:2rem;height:2rem;display:block">
+                        <circle cx="50" cy="50" r="40" stroke="var(--c-primary)" fill="none" stroke-width="20" stroke-linecap="round"></circle>
+                        <circle cx="50" cy="50" r="40" stroke="var(--c-bg)" fill="none" stroke-width="10" stroke-linecap="round">
+                            <animate attributeName="stroke-dashoffset" dur="2s" repeatCount="indefinite" from="0" to="502"></animate>
+                            <animate attributeName="stroke-dasharray" dur="2s" repeatCount="indefinite" values="225.9 25.099999999999994;1 250;225.9 25.099999999999994"></animate>
+                        </circle>
+                    </svg>
+                </div>
             </div>
 
         </form>
@@ -177,16 +181,18 @@ $_tmCategories    = Database::getDistinctCategories();
                 </label>
             </div>
 
-            <div class="modal__buttons">
-                <button
-                    @click="closeModalAdd()"
-                    type="button"
-                    class="btn btn--secondary"
-                    >Закрыть</button>
-                <button
-                    type="submit"
-                    class="btn btn--primary"
-                    >Добавить</button>
+            <div class="modal__buttons" :style="loading && 'justify-content:center'">
+                <button x-show="!loading" @click="closeModalAdd()" type="button" class="btn btn--secondary">Закрыть</button>
+                <button x-show="!loading" type="submit" class="btn btn--primary">Добавить</button>
+                <div x-show="loading">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" style="width:2rem;height:2rem;display:block">
+                        <circle cx="50" cy="50" r="40" stroke="var(--c-primary)" fill="none" stroke-width="20" stroke-linecap="round"></circle>
+                        <circle cx="50" cy="50" r="40" stroke="var(--c-bg)" fill="none" stroke-width="10" stroke-linecap="round">
+                            <animate attributeName="stroke-dashoffset" dur="2s" repeatCount="indefinite" from="0" to="502"></animate>
+                            <animate attributeName="stroke-dasharray" dur="2s" repeatCount="indefinite" values="225.9 25.099999999999994;1 250;225.9 25.099999999999994"></animate>
+                        </circle>
+                    </svg>
+                </div>
             </div>
 
         </form>

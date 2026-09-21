@@ -9,6 +9,7 @@ class Errors
     	Errors::write('curl', 'Для работы системы необходимо включить <a href=\"http://php.net/manual/en/book.curl.php\">расширение cURL</a>.');
     	Errors::write('missing_files', 'Не хватает файлов для работы системы.');
     	Errors::write('credential_miss', 'Не указаны учётные данные для трекера.');
+    	Errors::write('engine_error', 'Внутренняя ошибка движка при обработке трекера. Подробности — в torrent_monitor_error.log.');
 
 		Errors::write('not_available', 'Не могу получить доступ к трекеру.');
 		Errors::write('credential_wrong', 'Неправильные учётные данные.');
@@ -22,6 +23,7 @@ class Errors
 		Errors::write('max_torrent', 'Вы использовали доступное Вам количество торрент-файлов в сутки.');
 		Errors::write('torrent_file_fail', 'Не удалось получить данные torrent-файла.');
 		Errors::write('save_file_fail', 'Не удалось сохранить torrent-файл в директорию.');
+		Errors::write('quality_not_found', 'Не удалось найти торрент нужного качества на странице трекера.');
 		Errors::write('limit', 'Превышен лимит попыток входа в профиль. Необходимо остановить ТМ на 2-3 часа.');
         Errors::write('captcha', 'При авторизации запрашивается капча. Необходимо остановить ТМ на 2-3 часа.');
 
