@@ -19,8 +19,8 @@ services:
       - media
     volumes:
       - .:/var/www/html
-      - torrmon_torrentfiles:/var/www/html/torrents
-      - torrmon_db:/var/www/html/db
+      - ./torrents:/var/www/html/torrents
+      - ./db:/var/www/html/db
 
   flaresolverr:
     image: ghcr.io/flaresolverr/flaresolverr:latest
@@ -30,12 +30,6 @@ services:
     restart: unless-stopped
     networks:
       - media
-
-volumes:
-  torrmon_torrentfiles:
-    name: torrmon_torrentfiles
-  torrmon_db:
-    name: torrmon_db
 
 networks:
   media:
