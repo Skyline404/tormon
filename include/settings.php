@@ -311,7 +311,7 @@ if (file_exists($config))
                 <label class="row">
                     <div class="col --2:lg mb-1">Директория для скачивания:</div>
                     <div class="col --5:lg mb-2">
-                        <input type="text" name="pathToDownload" x-model="options.pathToDownload" :required="options.useTorrent > 0">
+                        <input type="text" name="pathToDownload" x-model="options.pathToDownload" placeholder="Оставьте пустым для авто-категорий клиента">
                         <div class="form-help">Например: /var/lib/transmission/downloads или C:/downloads</div>
                     </div>
                 </label>

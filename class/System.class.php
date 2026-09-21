@@ -49,6 +49,8 @@ class Sys
 
     public static function checkPath($path)
     {
+        if (empty($path)) return '';
+        
         $torrentClient = Database::getSetting('torrentClient');
         
         if (substr($path, -1) == '/')
