@@ -25,15 +25,19 @@ RUN a2enmod rewrite
 # Меняем порт Apache на 8080, так как обычный пользователь не может слушать порт 80
 RUN sed -i 's/80/8080/g' /etc/apache2/sites-available/000-default.conf /etc/apache2/ports.conf
 
-# Выдаем права нашему пользователю tormon на системные папки Apache
-RUN mkdir -p /var/run/apache2 /var/lock/apache2 /var/log/apache2 \
+# Создаем папки для db и torrents до монтирования volume (чтобы Docker скопировал права при первом запуске),
+# и выдаем права tormon.
+RUN mkdir -p /var/www/html/db /var/www/html/torrents /var/run/apache2 /var/lock/apache2 /var/log/apache2 \
     && chown -R tormon:tormon /var/www/html /var/run/apache2 /var/lock/apache2 /var/log/apache2
 
 # Настраиваем запуск Apache от имени нового пользователя
 RUN echo "export APACHE_RUN_USER=tormon" >> /etc/apache2/envvars \
     && echo "export APACHE_RUN_GROUP=tormon" >> /etc/apache2/envvars
 
-# Переключаемся на пользователя tormon (внутри контейнера мы больше не root!)
+# Переключаемся на пользователя tormon
 USER tormon
 
-COPY . /var/www/html/
+# Копируем проект (с правами tormon)
+COPY --chown=tormon:tormon . /var/www/html/
+
+ENTRYPOINT ["/var/www/html/docker-entrypoint.sh"]
