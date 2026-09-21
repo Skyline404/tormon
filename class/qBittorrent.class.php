@@ -52,6 +52,19 @@ class qBittorrent
 
         if ( ! empty($hash))
         {
+            // Пытаемся получить список старых файлов перед удалением старого торрента
+            curl_setopt($MainCurl, CURLOPT_URL, $torrentAddress."/api/v2/torrents/files?hash=".urlencode($hash));
+            curl_setopt($MainCurl, CURLOPT_POST, false);
+            $old_files_response = curl_exec($MainCurl);
+            $old_files_json = json_decode($old_files_response, true);
+            if (is_array($old_files_json)) {
+                $old_files = array();
+                foreach ($old_files_json as $of) {
+                    $old_files[] = basename($of['name']);
+                }
+            }
+            curl_setopt($MainCurl, CURLOPT_POST, true);
+
             $data = array(
                 'hashes' => $hash,
                 'deleteFiles' => 'false'
