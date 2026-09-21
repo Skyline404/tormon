@@ -54,6 +54,18 @@ $trackers = Database::getTrackersList();
                 </label>
             </template>
 
+                        <template x-if="tracker.tracker == 'rutracker.org'">
+                <div>
+                    <label class="row">
+                        <div class="col --2:lg mb-1">Cookie<br><small>(опционально)</small></div>
+                        <div class="col --5:lg mb-2">
+                            <textarea name="cookie" x-model="tracker.cookie" rows="3" style="font-size:11px;font-family:monospace" placeholder="bb_session=..."></textarea>
+                            <div style="font-size:11px;color:var(--color-muted,#888);margin-top:4px">Укажите bb_session, если вход по логину/паролю не работает из-за Cloudflare.</div>
+                        </div>
+                    </label>
+                </div>
+            </template>
+
             <template x-if="tracker.tracker == 'nnmclub.to'">
                 <div>
                     <label class="row">
