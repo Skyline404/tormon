@@ -57,11 +57,16 @@ class qBittorrent
             curl_setopt($MainCurl, CURLOPT_HTTPGET, true);
             $old_files_response = curl_exec($MainCurl);
             $old_files_json = json_decode($old_files_response, true);
-            if (is_array($old_files_json)) {
+            if (is_array($old_files_json) && !empty($old_files_json)) {
                 $old_files = array();
                 foreach ($old_files_json as $of) {
                     $old_files[] = basename($of['name']);
                 }
+            }
+            if (empty($old_files)) {
+                // Без списка старых серий обновление включило бы повторную загрузку всего сезона.
+                curl_close($MainCurl);
+                return array('status' => FALSE, 'msg' => 'add_fail');
             }
             curl_setopt($MainCurl, CURLOPT_POST, true);
 
@@ -87,10 +92,16 @@ class qBittorrent
             }
         }
         
+        // Постоянная метка темы позволяет найти именно нашу раздачу, в том числе при повторной попытке.
+        $torrentTag = 'torrentmonitor-'.$id;
+
         //Формируется тело запроса
         // autoTMM=true заставляет qBit игнорировать savepath — отключаем если путь задан
         $data = array(
             'urls'        => $file,
+            'tags'        => $torrentTag,
+            'paused'      => 'true', // qBittorrent 4.x
+            'stopped'     => 'true', // qBittorrent 5.x
             'autoTMM'     => empty($pathToDownload) ? 'true' : 'false',
             'savepath'    => $pathToDownload,
             'root_folder' => 'true',
@@ -129,34 +140,40 @@ class qBittorrent
             }
             else
             {
-                // fallback для старых версий qBit: ждём и запрашиваем последний добавленный
-                sleep(3);
-                $data = array(
-                    'filter' => 'all',
-                    'limit' => '1',
-                    'sort' => 'added_on',
-                    'reverse' => 'true'
-                );
-                curl_setopt($MainCurl, CURLOPT_URL, $torrentAddress."/api/v2/torrents/info");
-                curl_setopt($MainCurl, CURLOPT_POSTFIELDS, http_build_query($data));
-                $response = curl_exec($MainCurl);
-                $rdata = json_decode($response);
-                if (is_array($rdata) && !empty($rdata)) {
-                    $hashNew = $rdata[0]->hash;
-                } else {
-                    $hashNew = $hash; // Fallback to old hash if qBittorrent didn't register it in time
+                // Не используем последний добавленный торрент: его мог добавить другой клиент.
+                $hashNew = null;
+                for ($attempt = 0; $attempt < 10; $attempt++) {
+                    curl_setopt($MainCurl, CURLOPT_URL, $torrentAddress.'/api/v2/torrents/info?'.http_build_query(array('tag' => $torrentTag)));
+                    curl_setopt($MainCurl, CURLOPT_HTTPGET, true);
+                    $rdata = json_decode(curl_exec($MainCurl), true);
+                    if (is_array($rdata) && count($rdata) === 1 && !empty($rdata[0]['hash'])) {
+                        $hashNew = $rdata[0]['hash'];
+                        break;
+                    }
+                    sleep(1);
                 }
             }
 
-            #обновляем hash в базе
-            Database::updateHash($id, $hashNew);
+            if (empty($hashNew)) {
+                curl_close($MainCurl);
+                return array('status' => FALSE, 'msg' => 'add_fail');
+            }
 
             if (!empty($old_files)) {
-                curl_setopt($MainCurl, CURLOPT_URL, $torrentAddress."/api/v2/torrents/files?hash=".urlencode($hashNew));
-                curl_setopt($MainCurl, CURLOPT_HTTPGET, true);
-                $files_response = curl_exec($MainCurl);
-                $new_files = json_decode($files_response, true);
-                
+                $new_files = null;
+                for ($attempt = 0; $attempt < 10; $attempt++) {
+                    curl_setopt($MainCurl, CURLOPT_URL, $torrentAddress."/api/v2/torrents/files?hash=".urlencode($hashNew));
+                    curl_setopt($MainCurl, CURLOPT_HTTPGET, true);
+                    $new_files = json_decode(curl_exec($MainCurl), true);
+                    if (is_array($new_files) && !empty($new_files))
+                        break;
+                    sleep(1);
+                }
+                if (empty($new_files) || !is_array($new_files)) {
+                    curl_close($MainCurl);
+                    return array('status' => FALSE, 'msg' => 'add_fail');
+                }
+
                 if (is_array($new_files)) {
                     $prio_ids = array();
                     foreach ($new_files as $f) {
@@ -181,11 +198,18 @@ class qBittorrent
                         curl_setopt($MainCurl, CURLOPT_POST, true);
                         curl_setopt($MainCurl, CURLOPT_POSTFIELDS, http_build_query($prio_data));
                         curl_exec($MainCurl);
+                        if (curl_getinfo($MainCurl, CURLINFO_RESPONSE_CODE) !== 200) {
+                            curl_close($MainCurl);
+                            return array('status' => FALSE, 'msg' => 'add_fail');
+                        }
                     }
                 }
                 curl_setopt($MainCurl, CURLOPT_POST, true);
                 curl_setopt($MainCurl, CURLOPT_POSTFIELDS, '');
             }
+
+            #обновляем hash только после успешного применения приоритетов
+            Database::updateHash($id, $hashNew);
 
             // Форсированно снимаем с паузы
             curl_setopt($MainCurl, CURLOPT_URL, $torrentAddress."/api/v2/torrents/start");
